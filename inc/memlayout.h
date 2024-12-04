@@ -94,7 +94,6 @@
  *     at UTEMP.
  */
 
-
 // All physical memory mapped at this address
 #define	KERNEL_BASE			0xF0000000
 
@@ -157,6 +156,8 @@
 #define KERNEL_HEAP_MAX 0xFFFFF000
 //KHEAP pages number
 #define NUM_OF_KHEAP_PAGES ((KERNEL_HEAP_MAX-KERNEL_HEAP_START)/PAGE_SIZE)
+
+#define PGFLTEMP (UTEMP - PAGE_SIZE)
 
 #define USER_HEAP_START 0x80000000
 #define USER_HEAP_MAX 0xA0000000
