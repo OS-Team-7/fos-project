@@ -6,8 +6,21 @@ struct semaphore create_semaphore(char *semaphoreName, uint32 value)
 {
 	//TODO: [PROJECT'24.MS3 - #02] [2] USER-LEVEL SEMAPHORE - create_semaphore
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("create_semaphore is not implemented yet");
+	//panic("create_semaphore is not implemented yet");
 	//Your Code is Here...
+
+	struct semaphore new_semaphore;
+
+	struct __semdata* semaphore_data = smalloc(semaphoreName, sizeof(struct __semdata), 1);
+
+	semaphore_data->count = value;
+	semaphore_data->lock = 0;
+	strcpy(semaphore_data->name, semaphoreName);
+	LIST_INIT(&semaphore_data->queue);
+
+	new_semaphore.semdata = semaphore_data;
+
+	return new_semaphore;
 }
 struct semaphore get_semaphore(int32 ownerEnvID, char* semaphoreName)
 {
