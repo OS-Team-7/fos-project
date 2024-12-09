@@ -140,6 +140,16 @@ int sys_freeSharedObject(int32 sharedObjectID, void *startVA)
 	return syscall(SYS_free_shared_object,(uint32) sharedObjectID, (uint32) startVA, 0, 0, 0);
 }
 
+//Mine------------
+void sys_env_set_priority(int32 envID, int priority)
+{
+	//Comment the following line before start coding...
+	//panic("not implemented yet");
+	//return (void*)syscall(SYS_search_user_mem, size, 0, 0, 0, 0);
+	syscall(SYS_env_set_priority, envID, priority, 0, 0, 0);
+}
+//------------
+
 int sys_create_env(char* programName, unsigned int page_WS_size,unsigned int LRU_second_list_size,unsigned int percent_WS_pages_to_remove)
 {
 	return syscall(SYS_create_env,(uint32)programName, (uint32)page_WS_size,(uint32)LRU_second_list_size, (uint32)percent_WS_pages_to_remove, 0);

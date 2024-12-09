@@ -29,6 +29,7 @@ enum
 	SYS_get_size_of_shared_object,
 	SYS_get_shared_object,
 	SYS_free_shared_object,
+	SYS_env_set_priority,
 	SYS_create_env,
 	SYS_run_env,
 	SYS_destroy_env,

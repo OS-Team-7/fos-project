@@ -36,7 +36,10 @@ struct
 }ProcessQueues;
 
 #if USE_KHEAP
-	uint8 *quantums ;					// Quantum(s) in ms for each level of the ready queue(s)
+	uint8 *quantums;					// Quantum(s) in ms for each level of the ready queue(s)
+
+	struct spinlock *stlk;
+	uint32 starvation_threshold;
 #else
 	//RR ONLY
 	uint8 quantums[1] ;					// Quantum in ms for RR

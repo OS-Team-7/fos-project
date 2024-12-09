@@ -454,6 +454,10 @@ static void sys_exit_env()
 
 }
 
+void sys_env_set_priority(int32 envID, int priority){
+	env_set_priority(envID, priority);
+}
+
 //New update in 2020
 //Create a new env & add it to the NEW queue
 int sys_create_env(char* programName, unsigned int page_WS_size,unsigned int LRU_second_list_size, unsigned int percent_WS_pages_to_remove)
@@ -601,6 +605,11 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 
 	case SYS_get_size_of_shared_object:
 		return sys_getSizeOfSharedObject((int32)a1, (char*)a2);
+		break;
+
+	case SYS_env_set_priority:
+		sys_env_set_priority((int32)a1, (int)a2);
+		return 0;
 		break;
 
 	case SYS_create_env:
