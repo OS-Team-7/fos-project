@@ -364,7 +364,27 @@ void clock_interrupt_handler(struct Trapframe* tf)
 		//TODO: [PROJECT'24.MS3 - #09] [3] PRIORITY RR Scheduler - clock_interrupt_handler
 		//Your code is here
 		//Comment the following line
-		panic("Not implemented yet");
+		//panic("Not implemented yet");
+		ticks++ ;
+		struct Env* p = get_cpu_proc();
+		if (p != NULL) {
+			if (ticks > 1) { // replace 1 with starvation threshold
+				/*
+				 * Note: The code below only updates the current process
+				 * But what actually needs to be done is that we update all
+				 * processes, keeping the fifo order
+				 */
+				acquire_spinlock(&(ProcessQueues.qlock));
+				remove_from_queue(&(ProcessQueues.env_ready_queues[p->priority]), p);
+				p->priority -= 1;
+				if (p->priority < 0) {
+					panic("p->priority < 0 in clock_interrupt_handler");
+				}
+				enqueue(&(ProcessQueues.env_ready_queues[p->priority]), p);
+				release_spinlock(&(ProcessQueues.qlock));
+			}
+		}
+		return;
 	}
 
 

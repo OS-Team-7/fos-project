@@ -14,6 +14,7 @@
 #include <kern/trap/syscall.h>
 #include "kheap.h"
 #include "memory_manager.h"
+#include <kern/conc/spinlock.h>
 
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
@@ -47,16 +48,16 @@ int32 get_shareID_with_va(void* virtual_address) {
 	//cprintf("\n ID of env of fi = %d \n", fi->proc->env_id);
 	struct Share* curr_share;
 	acquire_spinlock(&AllShares.shareslock);
-	for (curr_share = LIST_FIRST(&AllShares.shares_list); curr_share != 0; curr_share = LIST_NEXT(curr_share)) {
-		uint32 n = sizeof(curr_share->framesStorage) / sizeof(uint32);
-		for (uint32 i = 0; i < n; i++) {
-			//cprintf("\n cur_shareID = %d \n", curr_share->ID);
-			if (curr_share->framesStorage[i] == fi) {
-				release_spinlock(&AllShares.shareslock);
-				return curr_share->ID;
-			}
-		}
-	}
+//	for (curr_share = LIST_FIRST(&AllShares.shares_list); curr_share != 0; curr_share = LIST_NEXT(curr_share)) {
+//		uint32 n = sizeof(curr_share->framesStorage) / sizeof(uint32);
+//		for (uint32 i = 0; i < n; i++) {
+//			//cprintf("\n cur_shareID = %d \n", curr_share->ID);
+//			if (curr_share->framesStorage[i] == fi) {
+//				release_spinlock(&AllShares.shareslock);
+//				return curr_share->ID;
+//			}
+//		}
+//	}
 
 	release_spinlock(&AllShares.shareslock);
 	return 0;
@@ -150,26 +151,20 @@ struct Share* create_share(int32 ownerID, char* shareName, uint32 size, uint8 is
 //	a) if found: ptr to Share object
 //	b) else: NULL
 struct Share* get_share(int32 ownerID, char* name) {
-	//TODO: [PROJECT'24.MS2 - #17] [4] SHARED MEMORY - get_share()
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	//panic("get_share is not implemented yet");
-	//Your Code is Here...
-
-	/*
-	 * Loop over shares list and check
-	 * Found? return current pointer
-	 */
 	struct Share* curr_share;
-	acquire_spinlock(&AllShares.shareslock);
+	int hsp = holding_spinlock(&AllShares.shareslock);
+	if(!hsp)
+		acquire_spinlock(&AllShares.shareslock);
 	for (curr_share = LIST_FIRST(&AllShares.shares_list); curr_share != 0; curr_share = LIST_NEXT(curr_share)) {
-		//cprintf("\n in get_share, share_name: %s, name_to_get: %s \n", curr_share->name, name);
 		if (curr_share->ownerID == ownerID && strcmp(curr_share->name, name) == 0) {
-			release_spinlock(&AllShares.shareslock);
+			cprintf("\n oldName: %s, newName : %s , oldID: %d, newID: %d \n", curr_share->name, name, curr_share->ownerID, ownerID);
+			if(!hsp)
+				release_spinlock(&AllShares.shareslock);
 			return curr_share;
 		}
 	}
-
-	release_spinlock(&AllShares.shareslock);
+	if(!hsp)
+		release_spinlock(&AllShares.shareslock);
 	return NULL;
 }
 
@@ -182,62 +177,45 @@ struct Share* get_share(int32 ownerID, char* name) {
  * Map the va sent to frames and write the mapped frames in the frames_storage
  */
 
-int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWritable, void* virtual_address) {
-	//TODO: [PROJECT'24.MS2 - #19] [4] SHARED MEMORY [KERNEL SIDE] - createSharedObject()
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	//panic("createSharedObject is not implemented yet");
-	//Your Code is Here...
 
+int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWritable, void* virtual_address) {
+	acquire_spinlock(&AllShares.shareslock);
 	struct Env* myenv = get_cpu_proc(); //The calling environment
 	struct Share* is_existed = get_share(ownerID, shareName);
-	//cprintf("\n after get_share: %u\n", (uint32)is_existed);
 	if (is_existed != NULL) {
+		release_spinlock(&AllShares.shareslock);
 		return E_SHARED_MEM_EXISTS;
 	}
 	struct Share* created_share = create_share(ownerID, shareName, size, isWritable);
-	//cprintf("\n after create_share \n");
 	if (created_share == NULL) {
+		release_spinlock(&AllShares.shareslock);
 		return E_NO_SHARE;
 	}
 	uint32 pages_count = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	uint32 start = *((uint32*) virtual_address);
 	uint32 allocated = 0;
-
+	//-------------------------------------------
+	acquire_spinlock(&MemFrameLists.mfllock);
 	if (pages_count > MemFrameLists.free_frame_list.size) {
 		cprintf("\n No mem in createSharedObject \n");
+		release_spinlock(&MemFrameLists.mfllock);
+		release_spinlock(&AllShares.shareslock);
 		return E_NO_SHARE;
 	}
+	//-------------------------------------------
 	uint32 va = (uint32)virtual_address;
 	while (pages_count > 0) {
 		struct FrameInfo* curr_frame = NULL;
 		allocate_frame(&curr_frame);
-		//cprintf("\n pages_count: %u, virtual_address: %u, present: %u \n", pages_count, (uint32)virtual_address, (uint32) virtual_address & PERM_PRESENT);
-		map_frame(myenv->env_page_directory, curr_frame, va, PERM_WRITEABLE | PERM_USER);
-		//---------------------------
-//		uint32* page_table;
-//		get_page_table(ptr_page_directory, fault_va, &page_table);
-//		uint32 pa = kheap_physical_address((uint32) page_table);
-//		uint32 fn = pa / PAGE_SIZE;
-//		cprintf("\n in fault_handler fn: %u \n", fn);
-//		pc[fn] += 1;
-		//---------------------------
-
-		if (strcmp(shareName, "y") == 0) {
-			*((uint32*) va) = 20;
-		}
-
-		//cprintf("\n in createSharedObject, Name: %s, frame: %u , written: %u \n", shareName, (uint32)curr_frame, *((uint32*)va));
-
-		//pt_set_page_permissions(myenv->env_page_directory, (uint32) va, 0, PERM_PRESENT);
-		//cprintf("\n mapped \n");
-
+		map_frame(myenv->env_page_directory, curr_frame, va, PERM_WRITEABLE | PERM_USER | PERM_MARKED);
 		created_share->framesStorage[allocated] = curr_frame;
 		allocated++;
 		va += PAGE_SIZE;
 		pages_count--;
 	}
 	LIST_INSERT_TAIL(&AllShares.shares_list, created_share);
-	//cprintf("\n ID in createSharedObject: %d \n", created_share->ID);
+	release_spinlock(&AllShares.shareslock);
+	release_spinlock(&MemFrameLists.mfllock);
 	return created_share->ID;
 }
 
@@ -249,38 +227,22 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
  * Hint: Use map_frame()
  */
 int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
-	//TODO: [PROJECT'24.MS2 - #21] [4] SHARED MEMORY [KERNEL SIDE] - getSharedObject()
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	//panic("getSharedObject is not implemented yet");
-	//Your Code is Here...
-
+	acquire_spinlock(&AllShares.shareslock);
 	struct Env* myenv = get_cpu_proc(); //The calling environment
 	struct Share* s = get_share(ownerID, shareName);
 	if (s == NULL) {
+		release_spinlock(&AllShares.shareslock);
 		return E_SHARED_MEM_NOT_EXISTS;
 	}
 	s->references += 1;
-	//cprintf("\n in getSharedObject, name: %s, writable: %u \n", shareName, (uint32)s->isWritable);
-	// Loop over frames, map them to the va
 	int n = ROUNDUP(s->size, PAGE_SIZE) / PAGE_SIZE;
 	uint32 va = (uint32) virtual_address;
 	for (int i = 0; i < n; i++) {
-		//cprintf("\n before_Mapping: %u, \n", *(uint32*)virtual_address);
-		map_frame(myenv->env_page_directory, s->framesStorage[i], (uint32) va, PERM_WRITEABLE * (s->isWritable) | PERM_USER);
-
-
-		//cprintf("\n in getSharedObject, Name: %s, frame: %u , written: %u \n", shareName, (uint32)(s->framesStorage[i]), *((uint32*)(va)));
-
-		//uint32 permissions = pt_get_page_permissions(myenv->env_page_directory, (uint32)va);
-		//cprintf("\n in getSharedObject, name: %s, PERM_WRATEABLE: %u \n", shareName, PERM_WRITEABLE & permissions);
-//		bool is_in_user_heap = (fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX);
-//		bool is_unmarked_page = ((permissions & PERM_MARKED) == 0);
-//		bool is_read_only = ((permissions & PERM_WRITEABLE) == 0);
-		//pt_set_page_permissions(myenv->env_page_directory, (uint32) va, PERM_MARKED, PERM_PRESENT);
+		map_frame(myenv->env_page_directory, s->framesStorage[i], (uint32) va, PERM_WRITEABLE * (s->isWritable) | PERM_USER | PERM_MARKED);
 		va += PAGE_SIZE;
 	}
+	release_spinlock(&AllShares.shareslock);
 	return s->ID;
-
 }
 
 //==================================================================================//
