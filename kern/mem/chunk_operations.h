@@ -34,5 +34,9 @@ void ufree_block(struct Env* env, void *va);
 void* search_user_mem(struct Env* e, uint32 size);
 void move_user_mem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size);
 void __free_user_mem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size);
+void insert_env_in_waiting_queue(struct Env_Queue* queue);
+void* remove_env_from_waiting_queue(struct Env_Queue* queue);
+void block_curr_env();
+void insert_env_in_ready_queue(struct Env* env);
 
 #endif /* KERN_MEM_CHUNK_OPERATIONS_H_ */

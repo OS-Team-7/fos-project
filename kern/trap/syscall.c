@@ -361,7 +361,28 @@ void sys_set_uheap_strategy(uint32 heapStrategy)
 /* SEMAPHORES SYSTEM CALLS */
 /*******************************/
 //[PROJECT'24.MS3] ADD SUITABLE CODE HERE
+void sys_insert_env_in_waiting_queue(struct Env_Queue* queue)
+{
+	insert_env_in_waiting_queue(queue);
+	return;
+}
 
+void* sys_remove_env_from_waiting_queue(struct Env_Queue* queue)
+{
+	return remove_env_from_waiting_queue(queue);
+}
+
+void sys_block_curr_env()
+{
+	block_curr_env();
+	return;
+}
+
+void sys_insert_env_in_ready_queue(struct Env* env)
+{
+	insert_env_in_ready_queue(env);
+	return;
+}
 
 /*******************************/
 /* SHARED MEMORY SYSTEM CALLS */
@@ -584,6 +605,25 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 
 	case SYS_clearFFL:
 		sys_clearFFL((const char)a1);
+		return 0;
+		break;
+
+	case SYS_INSERT_ENV_IN_WAITING_QUEUE:
+		sys_insert_env_in_waiting_queue((struct Env_Queue*)a1);
+		return 0;
+		break;
+
+	case SYS_REMOVE_ENV_FROM_WAITING_QUEUE:
+		return (uint32) sys_remove_env_from_waiting_queue((struct Env_Queue*)a1);
+		break;
+
+	case SYS_BLOCK_CURR_ENV:
+		sys_block_curr_env();
+		return 0;
+		break;
+
+	case SYS_INSERT_ENV_IN_READY_QUEUE:
+		sys_insert_env_in_ready_queue((struct Env*)a1);
 		return 0;
 		break;
 

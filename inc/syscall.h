@@ -50,6 +50,10 @@ enum
 	SYS_sbrk,
 	SYS_free_user_mem,
 	SYS_search_user_mem,
+	SYS_INSERT_ENV_IN_WAITING_QUEUE,
+	SYS_REMOVE_ENV_FROM_WAITING_QUEUE,
+	SYS_BLOCK_CURR_ENV,
+	SYS_INSERT_ENV_IN_READY_QUEUE,
 	SYS_allocate_user_mem,
 	SYS_ualloc_block_ff,
 	SYS_ufree_block,          // %$#@
