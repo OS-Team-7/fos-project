@@ -326,3 +326,26 @@ void sys_allocate_user_mem(uint32 virtual_address, uint32 size)
 	return;
 }
 
+void sys_insert_env_in_waiting_queue(struct Env_Queue* queue)
+{
+	syscall(SYS_INSERT_ENV_IN_WAITING_QUEUE, (uint32)queue, 0, 0, 0, 0);
+	return;
+}
+
+void* sys_remove_env_from_waiting_queue(struct Env_Queue* queue)
+{
+	return (void*) syscall(SYS_REMOVE_ENV_FROM_WAITING_QUEUE, (uint32)queue, 0, 0, 0, 0);
+}
+
+void sys_block_curr_env()
+{
+	syscall(SYS_BLOCK_CURR_ENV, 0, 0, 0, 0, 0);
+	return;
+}
+
+void sys_insert_env_in_ready_queue(struct Env* env)
+{
+	syscall(SYS_INSERT_ENV_IN_READY_QUEUE, (uint32)env, 0, 0, 0, 0);
+	return;
+}
+
