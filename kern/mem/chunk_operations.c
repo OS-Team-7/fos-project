@@ -341,6 +341,22 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	virtual_address = ROUNDDOWN(virtual_address, PAGE_SIZE);
 	uint32* ptr_page_table = NULL;
+
+	bool last_not_first = (e->page_last_WS_element != LIST_FIRST(&(e->page_WS_list)));
+	bool last_not_null = (e->page_last_WS_element != NULL);
+
+	if(last_not_first && last_not_null){
+		struct WorkingSetElement *first = LIST_FIRST(&(e->page_WS_list));
+		struct WorkingSetElement *prev = LIST_PREV(e->page_last_WS_element);
+		struct WorkingSetElement *end = LIST_LAST(&(e->page_WS_list));
+
+		end->prev_next_info.le_next = first;
+		first->prev_next_info.le_prev = end;
+		prev->prev_next_info.le_next = NULL;
+		e->page_last_WS_element->prev_next_info.le_prev = NULL;
+
+		LIST_FIRST(&(e->page_WS_list)) = e->page_last_WS_element;
+	}
 	while(1)
 	{
 		if(get_page_table(e->env_page_directory, virtual_address,&ptr_page_table) == TABLE_NOT_EXIST)
@@ -350,8 +366,9 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 			break;
 
 
-		if(ptr_page_table[PTX(virtual_address)] & PERM_PRESENT)
+		if(ptr_page_table[PTX(virtual_address)] & PERM_PRESENT){
 			env_page_ws_invalidate(e, virtual_address);
+		}
 
 		pf_remove_env_page(e, virtual_address);
 
@@ -364,6 +381,7 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 
 		virtual_address += PAGE_SIZE;
 	}
+
 
 	//TODO: [PROJECT'24.MS2 - BONUS#3] [3] USER HEAP [KERNEL SIDE] - O(1) free_user_mem
 }
