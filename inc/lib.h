@@ -45,6 +45,11 @@ void 	sys_lock_cons(void);
 void 	sys_unlock_cons(void);
 
 //User Env
+//mine-----------------
+
+void sys_env_set_priority(int32 envID, int priority);
+
+//Not mine-------------
 int32	sys_getenvindex(void);
 int32	sys_getenvid(void);
 int32	sys_getparentenvid(void);
