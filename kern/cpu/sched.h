@@ -38,6 +38,7 @@ struct
 #if USE_KHEAP
 	uint8 *quantums ;					// Quantum(s) in ms for each level of the ready queue(s)
 	uint32 starvation_threshold; // Khaled
+	struct spinlock *stlk;
 #else
 	//RR ONLY
 	uint8 quantums[1] ;					// Quantum in ms for RR

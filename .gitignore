@@ -1,3 +1,5 @@
 /bochs.log
 *.o
 /obj
+/stdout
+/.settings
