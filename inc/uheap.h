@@ -10,6 +10,10 @@
 //2020
 #define UHP_USE_BUDDY 0
 
+// These shall be set inside createSharedObject
+char names[NUM_OF_UHEAP_PAGES][64];
+int ids[NUM_OF_UHEAP_PAGES];
+
 void *malloc(uint32 size);
 void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable);
 void* sget(int32 ownerEnvID, char *sharedVarName);

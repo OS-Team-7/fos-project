@@ -255,6 +255,7 @@ void* search_user_mem(struct Env* e, uint32 size) {
 	 * **IMP** can change the next line
 	 */
 	//cprintf("\n e->holes_created: %d \n", e->holes_created);
+	acquire_spinlock(&umlk);
     uint32 r = (e->holes_created ? ((uint32)e->HARD_LIMIT + PAGE_SIZE) : e->first_free_address);
     uint32 l = r;
     uint32 cnt = 0;
@@ -272,11 +273,13 @@ void* search_user_mem(struct Env* e, uint32 size) {
             cnt++;
             if (cnt * PAGE_SIZE >= size) {
             	e->first_free_address = l + cnt * PAGE_SIZE;
+            	release_spinlock(&umlk);
             	return (void*)l;
             }
             r += PAGE_SIZE;
         }
     }
+    release_spinlock(&umlk);
     return NULL;
 }
 

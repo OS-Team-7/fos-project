@@ -124,6 +124,11 @@ int sys_createSharedObject(char* shareName, uint32 size, uint8 isWritable, void*
 }
 
 //2017:
+
+int32 get_shareID_with_va(void* virtual_address) {
+	return syscall(SYS_get_shareID_with_va, (uint32)virtual_address, 0, 0, 0, 0);
+}
+
 int sys_getSizeOfSharedObject(int32 ownerID, char* shareName)
 {
 	return syscall(SYS_get_size_of_shared_object,(uint32) ownerID, (uint32)shareName, 0, 0, 0);

@@ -49,7 +49,8 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 	HARD_LIMIT = (void*) daLimit;
 	PAGE_ALLOCATION_START = (void*) ((int) HARD_LIMIT + PAGE_SIZE);
 	first_free_address = (uint32)PAGE_ALLOCATION_START;
-	init_spinlock(&plk, "lock for ptr for fast kheap allocation test");
+	init_spinlock(&plk, "lock for kmalloc and kfree");
+	init_spinlock(&umlk, "user mem lock");
 
 	initialize_dynamic_allocator(daStart, initSizeToAllocate);
 	return 0;
@@ -97,15 +98,17 @@ void* kmalloc(unsigned int size) {
 	if (!isKHeapPlacementStrategyFIRSTFIT()) {
 		return NULL;
 	}
+	acquire_spinlock(&plk);
 	if (size <= PAGE_SIZE / 2) {
+		release_spinlock(&plk);
 		return alloc_block_FF(size);
 	}
 	acquire_spinlock(&MemFrameLists.mfllock);
 	if (MemFrameLists.free_frame_list.size < ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE) {
 		release_spinlock(&MemFrameLists.mfllock);
+		release_spinlock(&plk);
 		return NULL;
 	}
-	acquire_spinlock(&plk);
 	uint32 r = (holes_created ? (uint32)PAGE_ALLOCATION_START : (uint32) first_free_address);
 	uint32 l = r;
 	uint32 cnt = 0;
@@ -144,18 +147,20 @@ void* kmalloc(unsigned int size) {
 }
 
 void kfree(void* virtual_address) {
-	acquire_spinlock(&MemFrameLists.mfllock);
+	//acquire_spinlock(&MemFrameLists.mfllock);
+	acquire_spinlock(&plk);
 	if (virtual_address < sbrk(0)) {
-		release_spinlock(&MemFrameLists.mfllock);
+		//release_spinlock(&MemFrameLists.mfllock);
 		free_block(virtual_address);
 	} else if ((uint32)virtual_address >= (uint32)HARD_LIMIT + PAGE_SIZE && (uint32)virtual_address <= KERNEL_HEAP_MAX) {
 		uint32* ptr_page_table = NULL;
 		get_page_table(ptr_page_directory, (uint32) virtual_address, &ptr_page_table);
 		if (ptr_page_table == NULL || (ptr_page_table[PTX(virtual_address)] & PERM_PRESENT) == 0) {
-			release_spinlock(&MemFrameLists.mfllock);
+			//release_spinlock(&MemFrameLists.mfllock);
+			release_spinlock(&plk);
 			return;
 		}
-		acquire_spinlock(&MemFrameLists.mfllock);
+		//acquire_spinlock(&MemFrameLists.mfllock);
 		// Didn't use plk here cuz the mfllock shall do the job.
 		holes_created = 1;
 		virtual_address = (void*) ROUNDDOWN((uint32 )virtual_address, PAGE_SIZE);
@@ -166,8 +171,9 @@ void kfree(void* virtual_address) {
 			unmap_frame(ptr_page_directory, (uint32)virtual_address);
 			virtual_address += PAGE_SIZE;
 		}
-		release_spinlock(&MemFrameLists.mfllock);
+		//release_spinlock(&MemFrameLists.mfllock);
 	}
+	release_spinlock(&plk);
 }
 //void* slow_kmalloc(uint32 size) {
 //	if (!isKHeapPlacementStrategyFIRSTFIT()) {

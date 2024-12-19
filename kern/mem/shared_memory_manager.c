@@ -15,6 +15,7 @@
 #include "kheap.h"
 #include "memory_manager.h"
 #include <kern/conc/spinlock.h>
+#include <inc/uheap.h>
 
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
@@ -152,19 +153,19 @@ struct Share* create_share(int32 ownerID, char* shareName, uint32 size, uint8 is
 //	b) else: NULL
 struct Share* get_share(int32 ownerID, char* name) {
 	struct Share* curr_share;
-	int hsp = holding_spinlock(&AllShares.shareslock);
-	if(!hsp)
-		acquire_spinlock(&AllShares.shareslock);
+	//int hsp = holding_spinlock(&AllShares.shareslock);
+	//if(!hsp)
+	//	acquire_spinlock(&AllShares.shareslock);
 	for (curr_share = LIST_FIRST(&AllShares.shares_list); curr_share != 0; curr_share = LIST_NEXT(curr_share)) {
 		if (curr_share->ownerID == ownerID && strcmp(curr_share->name, name) == 0) {
 			cprintf("\n oldName: %s, newName : %s , oldID: %d, newID: %d \n", curr_share->name, name, curr_share->ownerID, ownerID);
-			if(!hsp)
-				release_spinlock(&AllShares.shareslock);
+		//	if(!hsp)
+		//		release_spinlock(&AllShares.shareslock);
 			return curr_share;
 		}
 	}
-	if(!hsp)
-		release_spinlock(&AllShares.shareslock);
+	//if(!hsp)
+	//	release_spinlock(&AllShares.shareslock);
 	return NULL;
 }
 
@@ -195,15 +196,20 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 	uint32 start = *((uint32*) virtual_address);
 	uint32 allocated = 0;
 	//-------------------------------------------
-	acquire_spinlock(&MemFrameLists.mfllock);
+	//acquire_spinlock(&MemFrameLists.mfllock);
 	if (pages_count > MemFrameLists.free_frame_list.size) {
 		cprintf("\n No mem in createSharedObject \n");
-		release_spinlock(&MemFrameLists.mfllock);
+		//release_spinlock(&MemFrameLists.mfllock);
 		release_spinlock(&AllShares.shareslock);
 		return E_NO_SHARE;
 	}
 	//-------------------------------------------
 	uint32 va = (uint32)virtual_address;
+	//uint32 page_num = (va - USER_HEAP_START) >> 12;
+	//strcpy(names[page_num], shareName);
+	//ids[page_num] = ownerID;
+	//cprintf("\n Name: %s, %u, %d \n", names[page_num], page_num, ids[page_num]);
+
 	while (pages_count > 0) {
 		struct FrameInfo* curr_frame = NULL;
 		allocate_frame(&curr_frame);
@@ -215,7 +221,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 	}
 	LIST_INSERT_TAIL(&AllShares.shares_list, created_share);
 	release_spinlock(&AllShares.shareslock);
-	release_spinlock(&MemFrameLists.mfllock);
+	//release_spinlock(&MemFrameLists.mfllock);
 	return created_share->ID;
 }
 
@@ -268,11 +274,16 @@ void free_share(struct Share* ptrShare) {
 	if (ptrShare == NULL) {
 		return;
 	}
-	acquire_spinlock(&AllShares.shareslock);
+	//int hsp = holding_spinlock(&AllShares.shareslock);
+	//if (!hsp)
+	//	acquire_spinlock(&AllShares.shareslock);
+
 	LIST_REMOVE(&AllShares.shares_list, ptrShare);
-	release_spinlock(&AllShares.shareslock);
 	kfree((void*) ptrShare->framesStorage);
-	kfree((void*) (ptrShare->ID | 1 << 31));
+	kfree((void*) ((uint32)ptrShare->ID | 1 << 31));
+
+	//if (!hsp)
+	//	release_spinlock(&AllShares.shareslock);
 }
 //========================
 // [B2] Free Share Object:
@@ -291,5 +302,46 @@ int freeSharedObject(int32 sharedObjectID, void *startVA) {
 	//panic("freeSharedObject is not implemented yet");
 	//Your Code is Here.../*
 
+	acquire_spinlock(&AllShares.shareslock);
+	struct Share* s;
+	//int hsp = holding_spinlock(&AllShares.shareslock);
+	//if (!hsp)
+
+	for (s = LIST_FIRST(&AllShares.shares_list); s != 0; s = LIST_NEXT(s)) {
+		if (s->ID == sharedObjectID) {
+			break;
+		}
+	}
+
+
+	// We must have found it.
+	struct Env* e = get_cpu_proc();
+	uint32 va = (uint32) startVA;
+	int n = ROUNDUP(s->size, PAGE_SIZE) / PAGE_SIZE;
+	for (int i = 0; i < n; i++) {
+		unmap_frame(e->env_page_directory, va);
+
+		uint32* page_table;
+		get_page_table(e->env_page_directory, va, &page_table);
+		uint32 page_table_empty = 1;
+		for (uint32 j = 0; j < 1 << 10; j++) {
+			page_table_empty &= (page_table[j] | PERM_AVAILABLE) == PERM_AVAILABLE;
+		}
+		//cprintf("\n page_table_empty: %u \n", page_table_empty);
+		if(page_table_empty == 1) {
+			kfree((void*)page_table);
+			pd_clear_page_dir_entry(e->env_page_directory, va);
+		}
+		va += PAGE_SIZE;
+	}
+
+	s->references -= 1;
+	cprintf("\n references: %u \n", s->references);
+	if (s->references == 0) {
+		free_share(s);
+	}
+	tlbflush(); // Not sure.
+	//if (!hsp)
+	release_spinlock(&AllShares.shareslock);
 	return 0;
 }

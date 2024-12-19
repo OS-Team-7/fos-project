@@ -45,6 +45,8 @@ unsigned int kheap_physical_address(unsigned int virtual_address);
 
 int numOfKheapVACalls ;
 
+struct spinlock umlk;
+
 //uint32 pc[1 << 20];
 //
 ////************************************

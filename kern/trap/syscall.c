@@ -366,6 +366,12 @@ void sys_set_uheap_strategy(uint32 heapStrategy)
 /*******************************/
 /* SHARED MEMORY SYSTEM CALLS */
 /*******************************/
+
+int sys_get_shareID_with_va(void* virtual_address)
+{
+	return get_shareID_with_va(virtual_address);
+}
+
 int sys_createSharedObject(char* shareName, uint32 size, uint8 isWritable, void* virtual_address)
 {
 	return createSharedObject(cur_env->env_id, shareName, size, isWritable, virtual_address);
@@ -587,6 +593,9 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 		return 0;
 		break;
 
+	case SYS_get_shareID_with_va:
+		return sys_get_shareID_with_va((void*)a1);
+		break;
 	case SYS_create_shared_object:
 		return sys_createSharedObject((char*)a1, a2, a3, (void*)a4);
 		break;
