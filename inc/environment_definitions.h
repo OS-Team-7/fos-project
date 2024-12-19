@@ -132,6 +132,11 @@ struct Env {
 	void* BREAK;
 	void* HARD_LIMIT;
 
+	//----------------------------------
+	uint32 first_free_address; // only reliable when no holes created
+	int8 holes_created;
+	//----------------------------------
+
 	//=======================================================================
 	//for page file management
 	uint32* disk_env_pgdir;

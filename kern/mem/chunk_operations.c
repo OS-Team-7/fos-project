@@ -254,7 +254,8 @@ void* search_user_mem(struct Env* e, uint32 size) {
 	/*
 	 * **IMP** can change the next line
 	 */
-    uint32 r = (uint32)e->HARD_LIMIT + PAGE_SIZE;
+	//cprintf("\n e->holes_created: %d \n", e->holes_created);
+    uint32 r = (e->holes_created ? ((uint32)e->HARD_LIMIT + PAGE_SIZE) : e->first_free_address);
     uint32 l = r;
     uint32 cnt = 0;
     while(r + PAGE_SIZE - 1 < USER_HEAP_MAX) {
@@ -270,6 +271,7 @@ void* search_user_mem(struct Env* e, uint32 size) {
         } else {
             cnt++;
             if (cnt * PAGE_SIZE >= size) {
+            	e->first_free_address = l + cnt * PAGE_SIZE;
             	return (void*)l;
             }
             r += PAGE_SIZE;
@@ -339,6 +341,7 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 	// Write your code here, remove the panic and write your code
 	//panic("free_user_mem() is not implemented yet...!!");
 
+	e->holes_created = 1;
 	virtual_address = ROUNDDOWN(virtual_address, PAGE_SIZE);
 	uint32* ptr_page_table = NULL;
 	while(1)

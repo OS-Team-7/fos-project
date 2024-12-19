@@ -4,6 +4,7 @@
 void
 _main(void)
 {
+	cprintf("\n Test Begin \n");
 	/*********************** NOTE ****************************
 	 * WE COMPARE THE DIFF IN FREE FRAMES BY "AT LEAST" RULE
 	 * INSTEAD OF "EQUAL" RULE SINCE IT'S POSSIBLE THAT SOME

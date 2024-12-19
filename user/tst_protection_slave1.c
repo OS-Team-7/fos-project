@@ -27,19 +27,26 @@ _main(void)
 		char name[10] ;
 #define NUM_OF_OBJS 5000
 		uint32* vars[NUM_OF_OBJS];
+		//cprintf("\n tstcnt1:%u \n", gettst());
 		for (int s = 0; s < NUM_OF_OBJS; ++s)
 		{
 			char index[10];
 			ltostr(s, index);
 			strcconcat(initname, index, name);
+
 			vars[s] = smalloc(name, PAGE_SIZE, 1);
+			//cprintf("\n s: %d, ret: %u \n", s, (uint32)vars[s] );
 			*vars[s] = s;
 		}
+		//inctst();
+		//cprintf("\n tstcnt2:%u \n", gettst());
 		for (int s = 0; s < NUM_OF_OBJS; ++s)
 		{
 			assert(*vars[s] == s);
 		}
+
 	}
 
 	inctst();
+	cprintf("\n tstcnt:%u \n", gettst());
 }

@@ -736,7 +736,7 @@ void sched_set_starv_thresh(uint32 starvThresh)
     //Your code is here
     //Comment the following line
     //panic("Not implemented yet");
-    acquire_spinlock(stlk);
-    starvation_threshold = starvThresh;
-    release_spinlock(stlk);
+    //acquire_spinlock(stlk);
+    //starvation_threshold = starvThresh;
+    //release_spinlock(stlk);
 }
