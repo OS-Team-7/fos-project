@@ -8,7 +8,6 @@
 #include <kern/trap/fault_handler.h>
 #include <kern/disk/pagefile_manager.h>
 #include <kern/proc/user_environment.h>
-#include <kern/cpu/sched.h>
 #include "kheap.h"
 #include "memory_manager.h"
 #include <inc/queue.h>
@@ -307,7 +306,7 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
     		create_page_table(e->env_page_directory, virtual_address + i * PAGE_SIZE);
     	}
 
-        pt_set_page_permissions(e->env_page_directory, virtual_address + i * PAGE_SIZE, PERM_MARKED, 0);
+        pt_set_page_permissions(e->env_page_directory, virtual_address + i * PAGE_SIZE, PERM_MARKED | PERM_WRITEABLE | PERM_USER, 0);
     }
 
     pt_set_page_permissions(e->env_page_directory, virtual_address + (pages_count - 1) * PAGE_SIZE, (1 << 9), 0);
@@ -342,6 +341,22 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	virtual_address = ROUNDDOWN(virtual_address, PAGE_SIZE);
 	uint32* ptr_page_table = NULL;
+
+	bool last_not_first = (e->page_last_WS_element != LIST_FIRST(&(e->page_WS_list)));
+	bool last_not_null = (e->page_last_WS_element != NULL);
+
+	if(last_not_first && last_not_null){
+		struct WorkingSetElement *first = LIST_FIRST(&(e->page_WS_list));
+		struct WorkingSetElement *prev = LIST_PREV(e->page_last_WS_element);
+		struct WorkingSetElement *end = LIST_LAST(&(e->page_WS_list));
+
+		end->prev_next_info.le_next = first;
+		first->prev_next_info.le_prev = end;
+		prev->prev_next_info.le_next = NULL;
+		e->page_last_WS_element->prev_next_info.le_prev = NULL;
+
+		LIST_FIRST(&(e->page_WS_list)) = e->page_last_WS_element;
+	}
 	while(1)
 	{
 		if(get_page_table(e->env_page_directory, virtual_address,&ptr_page_table) == TABLE_NOT_EXIST)
@@ -351,8 +366,9 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 			break;
 
 
-		if(ptr_page_table[PTX(virtual_address)] & PERM_PRESENT)
+		if(ptr_page_table[PTX(virtual_address)] & PERM_PRESENT){
 			env_page_ws_invalidate(e, virtual_address);
+		}
 
 		pf_remove_env_page(e, virtual_address);
 
@@ -365,6 +381,7 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 
 		virtual_address += PAGE_SIZE;
 	}
+
 
 	//TODO: [PROJECT'24.MS2 - BONUS#3] [3] USER HEAP [KERNEL SIDE] - O(1) free_user_mem
 }
@@ -387,67 +404,6 @@ void move_user_mem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual
 	//your code is here, remove the panic and write your code
 	panic("move_user_mem() is not implemented yet...!!");
 }
-
-//=====================================
-// 4) USER MEMORY SEMAPHORES
-//=====================================
-void insert_env_in_waiting_queue(struct Env_Queue* queue)
-{
-	if (queue == NULL)
-	{
-		panic("incoming queue is NULL\n");
-	}
-
-	struct Env* curr_env = get_cpu_proc();
-	enqueue(queue, curr_env);
-}
-
-void* remove_env_from_waiting_queue(struct Env_Queue* queue)
-{
-	if (queue == NULL)
-	{
-		panic("incoming queue is NULL\n");
-	}
-
-	if (LIST_SIZE(queue) == 0)
-	{
-		panic("can't remove from empty waiting queue\n");
-	}
-
-	return (void*) dequeue(queue);
-}
-
-void block_curr_env()
-{
-	acquire_spinlock(&ProcessQueues.qlock);
-	struct Env* curr_env = get_cpu_proc();
-
-	if (curr_env == NULL)
-	{
-		release_spinlock(&ProcessQueues.qlock);
-		panic("no env is running at the moment\n");
-	}
-
-	curr_env->env_status = ENV_BLOCKED;
-	sched();
-	release_spinlock(&ProcessQueues.qlock);
-}
-
-void insert_env_in_ready_queue(struct Env* env)
-{
-	acquire_spinlock(&ProcessQueues.qlock);
-	if (env == NULL)
-	{
-		release_spinlock(&ProcessQueues.qlock);
-		panic("can't insert a NULL env in ready queue\n");
-	}
-
-	env->env_status = ENV_READY;
-
-	sched_insert_ready(env);
-	release_spinlock(&ProcessQueues.qlock);
-}
-
 
 //=================================================================================//
 //========================== END USER CHUNKS MANIPULATION =========================//
