@@ -178,6 +178,7 @@ struct Env {
 	/*CPU BSD Sched...*/
 	//==================
 
+
 	//================
 	/*STATISTICS...*/
 	//================
@@ -191,6 +192,7 @@ struct Env {
 	//2020
 	uint32 nPageIn, nPageOut, nNewPageAdded;
 	uint32 nClocks ;
+	uint32 starvationTime;
 
 };
 

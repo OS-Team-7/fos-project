@@ -110,6 +110,7 @@ fos_scheduler(void)
 
 				//Change its status to RUNNING
 				next_env->env_status = ENV_RUNNING;
+				//next_env->starvationTime = 0;
 
 				//Context switch to it
 				context_switch(&(c->scheduler), next_env->context);
@@ -253,22 +254,21 @@ void sched_init_PRIRR(uint8 numOfPriorities, uint8 quantum, uint32 starvThresh)
 
 	num_of_ready_queues = numOfPriorities;
 
+	sched_delete_ready_queues();
+#if USE_KHEAP
 	ProcessQueues.env_ready_queues = kmalloc(sizeof(struct Env_Queue) * numOfPriorities);
+	quantums = kmalloc(1 * sizeof(uint8));
+#endif
 
 	for(int i = 0; i < numOfPriorities; i++)
 	{
+
 		init_queue(&ProcessQueues.env_ready_queues[i]);
 	}
 
-	quantums = kmalloc(sizeof(uint8));
-
 	quantums[0] = quantum;
-
 	kclock_set_quantum(quantum); // NOT SURE WHETHER THIS IS THE SUITABLE POSITION OR NOT
-
 	starvation_threshold = starvThresh;
-
-
 	//=========================================
 	//DON'T CHANGE THESE LINES=================
 	uint16 cnt0 = kclock_read_cnt0_latch() ; //read after write to ensure it's set to the desired value
@@ -360,7 +360,50 @@ struct Env* fos_scheduler_PRIRR()
 	//TODO: [PROJECT'24.MS3 - #08] [3] PRIORITY RR Scheduler - fos_scheduler_PRIRR
 	//Your code is here
 	//Comment the following line
-	panic("Not implemented yet");
+	// panic("Not implemented yet");
+
+	// Implement simple round-robin scheduling.
+	// Pick next environment from the ready queue,
+	// and switch to such environment if found.
+	// It's OK to choose the previously running env if no other env
+	// is runnable.
+
+	struct Env *next_env = NULL;
+	struct Env *cur_env = get_cpu_proc();
+	//If the curenv is still exist, then insert it again in the ready queue
+	if (cur_env != NULL)
+	{
+		// cprintf("\nHello cur!\n");
+		// sched_remove_new(cur_env);
+		// cprintf("\nGoodBye cur!\n");
+		sched_insert_ready(cur_env);
+	}
+
+	//Pick the next environment from the ready queues
+
+	for(int i = 0; i < num_of_ready_queues; i++)
+	{
+		if (queue_size(&ProcessQueues.env_ready_queues[i]) > 0) {
+			next_env = dequeue(&(ProcessQueues.env_ready_queues[i]));
+			break;
+		}
+	}
+
+	if(next_env != NULL) {
+		kclock_set_quantum(quantums[0]);
+	}
+
+	//Reset the quantum
+	//2017: Reset the value of CNT0 for the next clock interval
+	//uint16 cnt0 = kclock_read_cnt0_latch() ;
+	//cprintf("CLOCK INTERRUPT AFTER RESET: Counter0 Value = %d\n", cnt0 );
+
+	return next_env;
+
+	// get current running
+	// check if it is in the running env queue or not and if yes then return it
+	// remove current running from the running env queue
+	// put it on the ready queue
 }
 
 //========================================
@@ -375,21 +418,27 @@ void clock_interrupt_handler(struct Trapframe* tf)
 		//Your code is here
 		//Comment the following line
 		//panic("Not implemented yet");
-		ticks++ ;
-		struct Env* p = get_cpu_proc();
-		if (p != NULL) {
-			if (p->nClocks > starvation_threshold) {
-				acquire_spinlock(&(ProcessQueues.qlock));
-				remove_from_queue(&(ProcessQueues.env_ready_queues[p->priority]), p);
-				p->priority -= 1;
-				if (p->priority < 0) {
-					panic("p->priority < 0 in clock_interrupt_handler");
+
+		for (int i = 1; i < num_of_ready_queues; i++) {
+			struct Env *process;
+			acquire_spinlock(&(ProcessQueues.qlock));
+			LIST_FOREACH(process, &(ProcessQueues.env_ready_queues[i]))
+			{
+				//cprintf("\nClocks %d\n", process->nClocks);
+				//cprintf("\nstarvationTime %d\n", process->starvationTime);
+				process->starvationTime += 1;
+				//cprintf("\nstarvationTime %d\n", process->starvationTime);
+				if (process->starvationTime * quantums[0] >= starvation_threshold) {
+					//cprintf("\npromotion happened!\n");
+					process->starvationTime = 0;
+					sched_remove_ready(process);
+					process->priority -= 1;
+					sched_insert_ready(process);
 				}
-				enqueue(&(ProcessQueues.env_ready_queues[p->priority]), p);
-				release_spinlock(&(ProcessQueues.qlock));
+				//cprintf("\nstarvationTime %d\n", process->starvationTime);
 			}
+			release_spinlock(&(ProcessQueues.qlock));
 		}
-		return;
 	}
 
 
