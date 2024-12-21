@@ -32,6 +32,8 @@ extern volatile struct FrameInfo frames_info[];
 void	__destroy(void);
 void	exit(void);
 
+
+
 /* readline.c */
 void readline(const char *buf, char*);
 void atomic_readline(const char *buf, char*);
@@ -97,6 +99,7 @@ void    sys_insert_env_in_ready_queue(struct Env* env);
 
 //Sharing
 //2017
+int32   sys_get_shareID_with_va(void* virtual_address);
 int 	sys_createSharedObject(char* shareName, uint32 size, uint8 isWritable, void* virtual_address);
 int 	sys_getSizeOfSharedObject(int32 ownerID, char* shareName);
 int 	sys_getSharedObject(int32 ownerID, char* shareName, void* virtual_address );

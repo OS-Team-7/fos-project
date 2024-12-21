@@ -101,43 +101,32 @@ void free(void* virtual_address)
 void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	//==============================================================
 	//DON'T CHANGE THIS CODE========================================
-	if (size == 0)
+	if (size == 0) {
+		panic("\n size is 0 in smalloc \n");
 		return NULL;
-	//==============================================================
-	//TODO: [PROJECT'24.MS2 - #18] [4] SHARED MEMORY [USER SIDE] - smalloc()
-	// Write your code here, remove the panic and write your code
-	//panic("smalloc() is not implemented yet...!!");
+	}
 
-	/*
-	 * Do same as malloc(), but calls sys_createSharedObject(...) at the end if found.
-	 */
-	//size = ROUNDUP(size, PAGE_SIZE);
-	//cprintf("\n before search \n");
 	void* virtual_address = sys_search_user_mem(size);
-	//cprintf("\n after search: %u \n", (uint32)virtual_address);
 	if (virtual_address == NULL) {
+		panic("\n No user mem for smalloc! \n");
 		return NULL;
 	}
 	int ret = sys_createSharedObject(sharedVarName, size, isWritable, virtual_address);
-	if (ret == E_SHARED_MEM_EXISTS || ret == E_NO_SHARE){
+	if (ret == E_SHARED_MEM_EXISTS || ret == E_NO_SHARE) {
+		panic("\n No kernel mem for smalloc (or shared exists, check ret value)! ret = %d \n", ret);
 		return NULL;
 	}
-	return (void*)virtual_address;
+	uint32 page_num = ((uint32)(virtual_address) - USER_HEAP_START) >> 12;
+	ids[page_num] = ret;
+	//cprintf("\n ID: %d \n", ids[page_num]);
+	return (void*) virtual_address;
 }
 
 //========================================
 // [5] SHARE ON ALLOCATED SHARED VARIABLE:
 //========================================
-void* sget(int32 ownerEnvID, char *sharedVarName)
-{
-	//TODO: [PROJECT'24.MS2 - #20] [4] SHARED MEMORY [USER SIDE] - sget()
-	// Write your code here, remove the panic and write your code
-	//panic("sget() is not implemented yet...!!");
 
-	/*
-	 * Same FF code
-	 * When size found, map using map_frame
-	 */
+void* sget(int32 ownerEnvID, char *sharedVarName) {
 	uint32 size = sys_getSizeOfSharedObject(ownerEnvID, sharedVarName);
 	void* virtual_address = sys_search_user_mem(size);
 	if (virtual_address == NULL) {
@@ -147,7 +136,10 @@ void* sget(int32 ownerEnvID, char *sharedVarName)
 	if (ret == E_SHARED_MEM_EXISTS || ret == E_NO_SHARE) {
 		return NULL;
 	}
-	return (void*)virtual_address;
+	uint32 page_num = ((uint32)(virtual_address) - USER_HEAP_START) >> 12;
+	ids[page_num] = ret;
+	//cprintf("\n ID: %d \n", ids[page_num]);
+	return (void*) virtual_address;
 }
 
 //==================================================================================//
@@ -165,13 +157,20 @@ void* sget(int32 ownerEnvID, char *sharedVarName)
 //	calls freeSharedObject(...) in "shared_memory_manager.c", then switch back to the user mode here
 //	the freeSharedObject() function is empty, make sure to implement it.
 
-void sfree(void* virtual_address)
-{
+void sfree(void* virtual_address) {
 	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [USER SIDE] - sfree()
 	// Write your code here, remove the panic and write your code
-	panic("sfree() is not implemented yet...!!");
-}
+	//panic("sfree() is not implemented yet...!!");
 
+	uint32 page_num = ((uint32)(virtual_address) - USER_HEAP_START) >> 12;
+
+	if (ids[page_num] == 0){ // Assume kheap allocation starts after INT_MAX + 1, that is 1000...(31 zeros)
+		return;
+	}
+	//sys_get_shareID_with_va(virtual_address);
+	//cprintf("\n ID: %d \n", id);
+	sys_freeSharedObject(ids[page_num], virtual_address);
+}
 
 //=================================
 // REALLOC USER SPACE:

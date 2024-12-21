@@ -25,6 +25,7 @@ enum
 	SYS_allocate_chunk_in_mem,
 	SYS_move_user_mem,
 	SYS_clearFFL,
+	SYS_get_shareID_with_va,
 	SYS_create_shared_object,
 	SYS_get_size_of_shared_object,
 	SYS_get_shared_object,
