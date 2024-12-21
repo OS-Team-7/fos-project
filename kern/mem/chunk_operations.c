@@ -8,6 +8,7 @@
 #include <kern/trap/fault_handler.h>
 #include <kern/disk/pagefile_manager.h>
 #include <kern/proc/user_environment.h>
+#include <kern/cpu/sched.h>
 #include "kheap.h"
 #include "memory_manager.h"
 #include <inc/queue.h>
@@ -403,6 +404,67 @@ void move_user_mem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual
 	//[PROJECT] [USER HEAP - KERNEL SIDE] move_user_mem
 	//your code is here, remove the panic and write your code
 	panic("move_user_mem() is not implemented yet...!!");
+}
+
+
+//=====================================
+// 4) USER MEMORY SEMAPHORES
+//=====================================
+void insert_env_in_waiting_queue(struct Env_Queue* queue)
+{
+	if (queue == NULL)
+	{
+		panic("incoming queue is NULL\n");
+	}
+
+	struct Env* curr_env = get_cpu_proc();
+	enqueue(queue, curr_env);
+}
+
+void* remove_env_from_waiting_queue(struct Env_Queue* queue)
+{
+	if (queue == NULL)
+	{
+		panic("incoming queue is NULL\n");
+	}
+
+	if (LIST_SIZE(queue) == 0)
+	{
+		panic("can't remove from empty waiting queue\n");
+	}
+
+	return (void*) dequeue(queue);
+}
+
+void block_curr_env()
+{
+	acquire_spinlock(&ProcessQueues.qlock);
+	struct Env* curr_env = get_cpu_proc();
+
+	if (curr_env == NULL)
+	{
+		release_spinlock(&ProcessQueues.qlock);
+		panic("no env is running at the moment\n");
+	}
+
+	curr_env->env_status = ENV_BLOCKED;
+	sched();
+	release_spinlock(&ProcessQueues.qlock);
+}
+
+void insert_env_in_ready_queue(struct Env* env)
+{
+	acquire_spinlock(&ProcessQueues.qlock);
+	if (env == NULL)
+	{
+		release_spinlock(&ProcessQueues.qlock);
+		panic("can't insert a NULL env in ready queue\n");
+	}
+
+	env->env_status = ENV_READY;
+
+	sched_insert_ready(env);
+	release_spinlock(&ProcessQueues.qlock);
 }
 
 //=================================================================================//
